@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm
 
 """
-Program that looks at data from the ET scope
+Program that looks at data from the ET scope hallo
 """
 
 #ppe = 200 #points per event
