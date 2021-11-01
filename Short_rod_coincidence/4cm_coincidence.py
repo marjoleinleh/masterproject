@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm
 
 """
-Program that looks at data from the ET scope hallo
+Program that looks at data from the ET scope
 """
 
 #ppe = 200 #points per event
@@ -46,27 +46,7 @@ def readfile(filename, ppe):
 				if i == ppe:
 					event+=1
 					i=0
-
 				progress_bar.update(1) 
-				"""
-				if (line_count-2) % ppe== 0:
-					voltages1.append([])
-					voltages2.append([])
-					times.append([])
-					
-				if line_count > 2 and row[1]!='':
-					times[-1].append(float(row[0]))
-					voltages1[-1].append(float(row[1]))
-					voltages2[-1].append(float(row[2]))
-				
-				line_count+=1
-		if len(voltages1[-1]) == 0:
-			voltages1 = voltages1[:-2]
-			voltages2 = voltages2[:-2]
-		if len(voltages1[0]) == 0 :
-			voltages1 = voltages1[1:]
-			voltages2 = voltages2[1:]
-				"""
 
 		print(line_count)
 		#print("number of events " ,len(voltages1))
@@ -98,33 +78,18 @@ def test_file(times, voltage1, voltage2):
 	plt.show()
 
 	for time in times:
-		assert len(time) == 640
+		assert len(time) == 640 #Checks that there are 640 times in one event
 	
 	assert np.isfinite(times.all())
 	assert np.isfinite(voltage1.all())
 	assert np.isfinite(voltage2.all())
 
-
-def main(filename, ppe, savename):
-	timespart, voltages1, voltages2 = readfile(filename, ppe)
-	# test_file(timespart, voltages1, voltages2)
-
-	# sys.exit(0)
-
-	times1 = timespart
-	times2 = timespart
-	times = timespart + timespart
-	voltages = voltages1 + voltages2
-
-	#make_waveforms(voltages, times)
-
+def analyse_channel(times, voltages, savename, channelnum):
 	fheights = []
 	fmeans = []
 	fstdvs = []
 	areas = []
-	
 	deviatingevents = []
-	baselinelist = []
 
 	#Filtering bad events
 	print("filtering bad events")
@@ -135,46 +100,38 @@ def main(filename, ppe, savename):
 			break
 		
 		#make lists of the maximum heights per event	
-		fheights.append(np.amax(voltages[event]))
+		fheights.append(np.max(voltages[event]))
 
-		#Calculating the standard deviations and means
-		fmeans.append(np.mean(voltages[event][0:int(0.33*len(voltages[event]))]))
-		fstdvs.append(np.std(voltages[event][0:int(0.33*len(voltages[event]))]))
-
-		#determining the baseline
+		#Calculating the standard deviations and means of the first third of the 
 		baseline = np.mean(voltages[event][0:int(0.33*len(voltages[event]))])
-		baselinelist.append(baseline)
-		integrated = 0
+		stdev = np.std(voltages[event][0:int(0.33*len(voltages[event]))])
+		fmeans.append(baseline)
+		fstdvs.append(stdev)
 
-		#Check if the minimum value deviates to much from the baseline compared to the maximum value
-		if  abs(np.amin(voltages[event])-baseline) > 0.2* abs(np.amax(voltages[event])-baseline):
+		#Check maximum value of the last 20% of the data, removing events that have a late peak
+		latemax = np.max(voltages[event][int(0.8*len(voltages[event])):len(voltages[event])])
+		#print(latemax)
+		if latemax > baseline + 1.5*stdev:
 			deviatingevents.append(event)
 			voltages[event] = len(voltages[event])*[np.nan]
-			if event <len(voltages1):
-				voltages1[event]= len(voltages1[event])*[np.nan]
-			else:
-				voltages2[event-len(voltages1)]= len(voltages2[event-len(voltages1)])*[np.nan]
-		#looking for events that have a significant pulse (>3sigma) in the direction opposite to the signal
-		#for datapoint in voltages[event]:
-			#integrated += (datapoint-baseline)
-			#if savename == "28":
-				#integrated +=
 
+		#Calculating the integrated area
+		area = 0
 		if savename == "28":
 			#print(len(voltages[event]))
 			if len(voltages[event])>425:
 				for datapoint in np.arange(315, 425):
-					integrated += voltages[event][datapoint]
+					area += voltages[event][datapoint]
 			elif len(voltages[event])<425:
 				print(event, "Event range too small")
 				#print(datapoint, voltages[event][datapoint], event)
 		elif savename == "27":
 			for datapoint in range(295, 405):
-				integrated += voltages[event][datapoint]
+				area += voltages[event][datapoint]
 
 		elif savename == "26":
 			for datapoint in range(295, 405):
-				integrated += voltages[event][datapoint]
+				area += voltages[event][datapoint]
 			"""
 			if datapoint < fmeans[-1]-7*fstdvs[-1]:
 				if event not in deviatingevents:
@@ -195,8 +152,7 @@ def main(filename, ppe, savename):
 				#deviatingevents.append(event)
 				#voltages[event] = len(voltages[event])*[np.nan]
 				#voltages3[event] = len(voltages2[event])*[np.nan]
-		areas.append(integrated)
-	#print(fheights)
+		areas.append(area)
 
 	"""	
 	for event in deviatingevents:
@@ -218,25 +174,15 @@ def main(filename, ppe, savename):
 	#optional calling to make the waveform plots
 	#make_waveforms(voltages, times, fmeans, fstdvs, baselinelist)
 
-	heightssipm1 = []
-	heightssipm2 = []
-	# 
-	for event in range(len(fheights)):
-		if event <len(voltages1):
-			heightssipm1.append(fheights[event])
-		else:
-			heightssipm2.append(fheights[event])
-	#print(len(heightssipm1), len(heightssipm2))
+	# plt.figure()
+	# plt.hist2d(heightssipm1, heightssipm2, cmap=plt.cm.jet, cmin =1)
+	# plt.xlabel('SiPM 1')
+	# plt.ylabel('SiPM 2')
+	# plt.title('Peak height correlation' +savename +" V")
+	# plt.colorbar()
 
-	plt.figure()
-	plt.hist2d(heightssipm1, heightssipm2, cmap=plt.cm.jet, cmin =1)
-	plt.xlabel('SiPM 1')
-	plt.ylabel('SiPM 2')
-	plt.title('Peak height correlation' +savename +" V")
-	plt.colorbar()
-
-	plt.savefig(savename + "signal_height.png" )
-	plt.show()
+	# plt.savefig(savename + "signal_height.png" )
+	# plt.show()
 
 	#checking for cut off peaks
 	maxevents = []
@@ -251,11 +197,30 @@ def main(filename, ppe, savename):
 			nonmaxheights.append(fheights[event])
 			nonmaxareas.append(areas[event])
 	print("number of events that were maxed out ",len(maxevents))
+
+	#Figure of all waveforms from fast output
+	plt.figure()
+	for event in range(len(voltages)):#int(len(voltages2))):
+		plt.plot(range(len(voltages[event])), voltages[event], color='black', alpha =0.05)
+	plt.xlabel("Time(s)")
+	plt.ylabel("Voltage(V)")
+	plt.title(savename + "V signals output channel " + channelnum)
+	plt.savefig(savename +"V_channel" + channelnum+"_overlay.png")
+	plt.show()
 	
+	print("Analyse events in one channel")
+	return fheights, areas
 
+def main(filename, ppe, savename):
+	times, voltages1, voltages2 = readfile(filename, ppe)
+	# test_file(timespart, voltages1, voltages2)
+	# sys.exit(0)
+	# make_waveforms(voltages, times)
 
+	peaks1, areas1 = analyse_channel(times, voltages1, savename, "1")
+	peaks2, areas2 = analyse_channel(times, voltages2, savename, "2")
 
-
+	sys.exit(0)
 
 	timedifferences = []
 	heightdifferences = []
@@ -270,35 +235,17 @@ def main(filename, ppe, savename):
 			timediff = times1[event][voltages1[event].index(peak1)] - times2[event][voltages2[event].index(peak2)]
 			timedifferences.append(timediff)
 			heightdifferences.append(peak1-peak2)
-			#print(timediff, peak1-peak2)
-
 
 	#print(heightdifferences)
 	#print(timedifferences)
 
-#	plt.figure()
-#	plt.hist2d()
-	
-	#Figure of all waveforms from fast output
-	plt.figure()
-	for event in range(1001):#int(len(voltages2))):
-		plt.plot(range(len(voltages[event])), voltages[event], color='black', alpha =0.01)
-	plt.xlabel("Time(s)")
-	plt.ylabel("Voltage(V)")
-	plt.title(savename + "V signals output")
-	plt.savefig(savename +"V_overlay.png")
-	plt.show()
-	
 	
 	return fheights, areas, nonmaxheights, nonmaxareas, heightdifferences, timedifferences
-	print(filename, "done")
 
 
-	print("okay")
-
-fheights28, areas28, nonmaxheights28, nonmaxareas28, heightdifferences28, timedifferences28 = main(r"C:\Users\User\Documents\GRAPPA\MasterProject\SiPM\Short_rod_coincidence\28V-4cm-2mv.csv", 640, "28")
-fheights26, areas26, nonmaxheights26, nonmaxareas26, heightdifferences26, timedifferences26 = main(r"C:\Users\User\Documents\GRAPPA\MasterProject\SiPM\Short_rod_coincidence\26V-4cm-1000events.csv", 640, "26")
-fheights27, areas27, nonmaxheights27, nonmaxareas27, heightdifferences27, timedifferences27 = main(r"C:\Users\User\Documents\GRAPPA\MasterProject\SiPM\Short_rod_coincidence\27V-4cm-1000events.csv", 640, "27")
+fheights28, areas28, nonmaxheights28, nonmaxareas28, heightdifferences28, timedifferences28 = main(r"C:\Users\User\Documents\GRAPPA\masterproject\Short_rod_coincidence\28V-4cm-2mv.csv", 640, "28")
+fheights26, areas26, nonmaxheights26, nonmaxareas26, heightdifferences26, timedifferences26 = main(r"C:\Users\User\Documents\GRAPPA\masterproject\Short_rod_coincidence\26V-4cm-1000events.csv", 640, "26")
+fheights27, areas27, nonmaxheights27, nonmaxareas27, heightdifferences27, timedifferences27 = main(r"C:\Users\User\Documents\GRAPPA\masterproject\Short_rod_coincidence\27V-4cm-1000events.csv", 640, "27")
 
 plt.figure()
 plt.hist(timedifferences26, range =(-0.000000004,0.000000004), bins =25,histtype = u'step', label = "26 V")
