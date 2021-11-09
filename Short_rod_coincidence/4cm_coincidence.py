@@ -90,11 +90,15 @@ def analyse_channel(times, voltages, savename, channelnum):
 	fstdvs = []
 	areas = []
 	deviatingevents = []
+	toalist = np.zeros(len(voltages))
+	toalist[:] = np.nan
+
+	tstep = times[10][11] - times[10][10]
 
 	#Filtering bad events
 	print("filtering bad events")
 	for event in range(len(voltages)):
-		peak = False
+		peak = True
 		if np.amax(voltages[event]) == np.nan:
 			deviatingevents.append(event)
 			break
@@ -110,36 +114,68 @@ def analyse_channel(times, voltages, savename, channelnum):
 
 		#Check maximum value of the last 20% of the data, removing events that have a late peak
 		latemax = np.max(voltages[event][int(0.8*len(voltages[event])):len(voltages[event])])
+		earlymax = np.max(voltages[event][0:int(0.33*len(voltages[event]))])
 		#print(latemax)
-		if latemax > baseline + 1.5*stdev:
+		if latemax >  baseline + 3*stdev:
 			deviatingevents.append(event)
 			voltages[event] = len(voltages[event])*[np.nan]
+			peak = False
+		elif earlymax >  baseline + 3*stdev:
+			deviatingevents.append(event)
+			voltages[event] = len(voltages[event])*[np.nan]
+			peak = False
+	
 
-		#Calculating the integrated area
 		area = 0
-		if savename == "28":
-			#print(len(voltages[event]))
-			if len(voltages[event])>425:
-				for datapoint in np.arange(315, 425):
+		
+		if peak == True:
+			#Calculating the integrated area
+			
+			"""
+			if savename == "28":
+				#print(len(voltages[event]))
+				if len(voltages[event])>425:
+					for datapoint in np.arange(315, 425):
+						area += voltages[event][datapoint]
+				elif len(voltages[event])<425:
+					print(event, "Event range too small")
+					#print(datapoint, voltages[event][datapoint], event)
+			elif savename == "27":
+				for datapoint in range(295, 405):
 					area += voltages[event][datapoint]
-			elif len(voltages[event])<425:
-				print(event, "Event range too small")
-				#print(datapoint, voltages[event][datapoint], event)
-		elif savename == "27":
-			for datapoint in range(295, 405):
-				area += voltages[event][datapoint]
 
-		elif savename == "26":
-			for datapoint in range(295, 405):
-				area += voltages[event][datapoint]
+			elif savename == "26":
+				for datapoint in range(295, 405):
+					area += voltages[event][datapoint]
+			# 110 indices should be integrated
 			"""
-			if datapoint < fmeans[-1]-7*fstdvs[-1]:
-				if event not in deviatingevents:
-					deviatingevents.append(event)
-					voltages[event] = len(voltages[event])*[np.nan]
-				#voltages3[event] = len(voltages2[event])*[np.nan]
-				break
-			"""
+			for datapoint in range(len(voltages[event])):
+				if voltages[event][datapoint]>baseline +5*stdev:
+					if datapoint < 250:
+						deviatingevents.append(event)
+						voltages[event] = len(voltages[event])*[np.nan]
+						peak = False
+						print("found a rogue peak")
+					#print(event, datapoint)
+					elif datapoint > 550:
+						deviatingevents.append(event)
+						voltages[event] = len(voltages[event])*[np.nan]
+						peak = False
+						print("found a rogue peak")						
+					else:
+						ToA = datapoint *tstep
+						toalist[event] = ToA
+						for i in range(110):
+							area += voltages[event][datapoint +i]
+						break
+
+		if area == 0:
+			deviatingevents.append(event)
+			voltages[event] = len(voltages[event])*[np.nan]
+			peak = False
+			#print("found no peak")
+		#print(event, "integrated signal,", area)	
+
 			#elif datapoint > fmeans[-1]+5*fstdvs[-1]:
 				#peak = True
 			#if datapoint > 0.001:
@@ -209,7 +245,7 @@ def analyse_channel(times, voltages, savename, channelnum):
 	plt.show()
 	
 	print("Analyse events in one channel")
-	return fheights, areas
+	return fheights, areas, toalist
 
 def main(filename, ppe, savename):
 	times, voltages1, voltages2 = readfile(filename, ppe)
@@ -217,10 +253,13 @@ def main(filename, ppe, savename):
 	# sys.exit(0)
 	# make_waveforms(voltages, times)
 
-	peaks1, areas1 = analyse_channel(times, voltages1, savename, "1")
-	peaks2, areas2 = analyse_channel(times, voltages2, savename, "2")
+	peaks1, areas1, toalist1 = analyse_channel(times, voltages1, savename, "1")
+	peaks2, areas2, toalist2 = analyse_channel(times, voltages2, savename, "2")
 
-	sys.exit(0)
+	fheights = peaks1 +peaks2
+	areas = areas1+areas2
+
+	#sys.exit(0)
 
 	timedifferences = []
 	heightdifferences = []
@@ -229,10 +268,12 @@ def main(filename, ppe, savename):
 		if voltages1[event][0] == np.nan:
 			print("skip")
 		else:
-			peak1 = max(voltages1[event])
-			peak2 = max(voltages2[event])
+			peak1 = np.max(voltages1[event])
+			peak2 = np.max(voltages2[event])
+			#print(peak1,peak2)
+			#print(times[event])
 			#print(peak1, peak2)
-			timediff = times1[event][voltages1[event].index(peak1)] - times2[event][voltages2[event].index(peak2)]
+			timediff = toalist1[event] - toalist2[event]
 			timedifferences.append(timediff)
 			heightdifferences.append(peak1-peak2)
 
@@ -240,12 +281,12 @@ def main(filename, ppe, savename):
 	#print(timedifferences)
 
 	
-	return fheights, areas, nonmaxheights, nonmaxareas, heightdifferences, timedifferences
+	return fheights, areas, heightdifferences, timedifferences
 
 
-fheights28, areas28, nonmaxheights28, nonmaxareas28, heightdifferences28, timedifferences28 = main(r"C:\Users\User\Documents\GRAPPA\masterproject\Short_rod_coincidence\28V-4cm-2mv.csv", 640, "28")
-fheights26, areas26, nonmaxheights26, nonmaxareas26, heightdifferences26, timedifferences26 = main(r"C:\Users\User\Documents\GRAPPA\masterproject\Short_rod_coincidence\26V-4cm-1000events.csv", 640, "26")
-fheights27, areas27, nonmaxheights27, nonmaxareas27, heightdifferences27, timedifferences27 = main(r"C:\Users\User\Documents\GRAPPA\masterproject\Short_rod_coincidence\27V-4cm-1000events.csv", 640, "27")
+fheights28, areas28, heightdifferences28, timedifferences28 = main(r"C:\Users\User\Documents\GRAPPA\masterproject\Short_rod_coincidence\28V-4cm-2mv.csv", 640, "28")
+fheights26, areas26, heightdifferences26, timedifferences26 = main(r"C:\Users\User\Documents\GRAPPA\masterproject\Short_rod_coincidence\26V-4cm-1000events.csv", 640, "26")
+fheights27, areas27, heightdifferences27, timedifferences27 = main(r"C:\Users\User\Documents\GRAPPA\masterproject\Short_rod_coincidence\27v-shortr_new.csv", 640, "27")
 
 plt.figure()
 plt.hist(timedifferences26, range =(-0.000000004,0.000000004), bins =25,histtype = u'step', label = "26 V")
@@ -286,7 +327,7 @@ plt.savefig('peak_time_correlation_28V.png')
 plt.show()
 
 plt.figure()
-plt.hist2d(fheights26, areas26, bins = (np.linspace(0,0.04,25),np.linspace(-0.2,0.5,25)), cmap=plt.cm.jet, cmin =1)
+plt.hist2d(fheights26, areas26, bins = (np.linspace(0,0.04,25),np.linspace(-0.2,1,25)), cmap=plt.cm.jet, cmin =1)
 plt.xlabel('Peak heights (V)')
 plt.ylabel('Integrated signal (V)')
 plt.title('Peak Height and Area Correlation (26V)')
@@ -294,6 +335,7 @@ plt.colorbar()
 plt.savefig('correlation_26V.png')
 plt.show()
 
+"""
 plt.figure()
 plt.hist2d(nonmaxheights26, nonmaxareas26, bins = (np.linspace(0,0.06,25),np.linspace(-0.2,1,25)), cmap=plt.cm.jet, cmin =1)
 plt.xlabel('Peak heights (V)')
@@ -304,44 +346,12 @@ plt.savefig('nonmaxcorrelation_26V.png')
 plt.show()
 
 plt.figure()
-plt.hist2d(fheights27, areas27, bins = (np.linspace(0,0.04,25),np.linspace(-0.2,0.5,25)), cmap=plt.cm.jet, cmin =1)
-plt.xlabel('Peak heights (V)')
-plt.ylabel('Integrated signal (V)')
-plt.title('Peak Height and Area Correlation (27V)')
-plt.colorbar()
-plt.savefig('correlation_27V.png')
-plt.show()
-
-plt.figure()
-plt.hist2d(fheights28, areas28, bins = (np.linspace(0,0.04,25),np.linspace(-0.2,0.5,25)), cmap=plt.cm.jet, cmin = 1)
-plt.xlabel('Peak heights (V)')
-plt.ylabel('Integrated signal (V)')
-plt.title('Peak Height and Area Correlation (28V)')
-plt.colorbar()
-plt.savefig('correlation_28V.png')
-plt.show()
-
-plt.figure()
 plt.hist2d(nonmaxheights28, nonmaxareas28, bins = (np.linspace(0,0.06,25),np.linspace(-0.2,1,25)), cmap=plt.cm.jet, cmin = 1)
 plt.xlabel('Peak heights (V)')
 plt.ylabel('Integrated signal (V)')
 plt.title('Peak Height and Area Correlation (28V)')
 plt.colorbar()
 plt.savefig('non_max_correlation_28V.png')
-plt.show()
-
-
-
-plt.figure()
-plt.hist(fheights26, bins = np.linspace(0,0.04,50),histtype = u'step', label = "26 V")
-plt.hist(fheights27, bins = np.linspace(0,0.04,50),histtype = u'step', label = "27 V")
-plt.hist(fheights28, bins = np.linspace(0,0.04,50),histtype = u'step', label = "28 V")
-#plt.yscale('log')
-plt.title("Peak heights of Fast Output")
-plt.xlabel("Peak height")
-plt.ylabel("Counts")
-plt.legend()
-plt.savefig("peak_heights_all.png")
 plt.show()
 
 plt.figure()
@@ -356,21 +366,7 @@ plt.legend()
 plt.savefig("nonmaxpeak_heights_all.png")
 plt.show()
 
-#histogram of peak heights of fast output
-plt.figure()
-plt.hist(areas26, bins =np.linspace(-0.2,0.5,50),histtype = u'step', label = "26 V")
-plt.hist(areas27, bins =np.linspace(-0.2,0.5,50),histtype = u'step', label = "27 V")
-plt.hist(areas28, bins =np.linspace(-0.2,0.5,50),histtype = u'step', label = "28 V")
-#plt.yscale('log')
-#plt.hist(areas27, bins = np.linspace(-2, 14, 35), histtype = u'step')
-#plt.hist(areas28, bins = np.linspace(-2, 14, 35), histtype = u'step')
-#plt.hist(areas29, bins = np.linspace(-2, 14, 35), histtype = u'step')
-plt.title("Integrated signals")
-plt.xlabel("Signal Area (V)")
-plt.ylabel("Counts")
-plt.legend()
-plt.savefig("integrated_area_all.png")
-plt.show()
+
 
 #histogram of peak heights of fast output
 plt.figure()
@@ -386,4 +382,57 @@ plt.xlabel("Signal Area (V)")
 plt.ylabel("Counts")
 plt.legend()
 plt.savefig("nonmaxintegrated_area_all.png")
+plt.show()
+"""
+
+plt.figure()
+plt.hist2d(fheights27, areas27, bins = (np.linspace(0,0.04,25),np.linspace(-0.2,1,25)), cmap=plt.cm.jet, cmin =1)
+plt.xlabel('Peak heights (V)')
+plt.ylabel('Integrated signal (V)')
+plt.title('Peak Height and Area Correlation (27V)')
+plt.colorbar()
+plt.savefig('correlation_27V.png')
+plt.show()
+
+plt.figure()
+plt.hist2d(fheights28, areas28, bins = (np.linspace(0,0.04,25),np.linspace(-0.2,1,25)), cmap=plt.cm.jet, cmin = 1)
+plt.xlabel('Peak heights (V)')
+plt.ylabel('Integrated signal (V)')
+plt.title('Peak Height and Area Correlation (28V)')
+plt.colorbar()
+plt.savefig('correlation_28V.png')
+plt.show()
+
+
+
+
+
+plt.figure()
+plt.hist(fheights26, bins = np.linspace(0,0.04,50),histtype = u'step', label = "26 V")
+plt.hist(fheights27, bins = np.linspace(0,0.04,50),histtype = u'step', label = "27 V")
+plt.hist(fheights28, bins = np.linspace(0,0.04,50),histtype = u'step', label = "28 V")
+#plt.yscale('log')
+plt.title("Peak heights of Fast Output")
+plt.xlabel("Peak height")
+plt.ylabel("Counts")
+plt.legend()
+plt.savefig("peak_heights_all.png")
+plt.show()
+
+
+
+#histogram of peak heights of fast output
+plt.figure()
+plt.hist(areas26, bins =np.linspace(-0.2,0.5,50),histtype = u'step', label = "26 V")
+plt.hist(areas27, bins =np.linspace(-0.2,0.5,50),histtype = u'step', label = "27 V")
+plt.hist(areas28, bins =np.linspace(-0.2,0.5,50),histtype = u'step', label = "28 V")
+#plt.yscale('log')
+#plt.hist(areas27, bins = np.linspace(-2, 14, 35), histtype = u'step')
+#plt.hist(areas28, bins = np.linspace(-2, 14, 35), histtype = u'step')
+#plt.hist(areas29, bins = np.linspace(-2, 14, 35), histtype = u'step')
+plt.title("Integrated signals")
+plt.xlabel("Signal Area (V)")
+plt.ylabel("Counts")
+plt.legend()
+plt.savefig("integrated_area_all.png")
 plt.show()
