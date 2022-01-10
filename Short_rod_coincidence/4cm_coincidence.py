@@ -1,7 +1,7 @@
 import sys
 from matplotlib.colors import LogNorm
+from helper import *
 import csv
-import matplotlib.pyplot as plt
 import statistics
 import math
 import numpy as np
@@ -10,7 +10,7 @@ from tqdm import tqdm
 """
 Program that looks at data from the ET scope
 """
-
+init_plotting_preferences()
 #ppe = 200 #points per event
 
 def readfile(filename, ppe):
@@ -151,7 +151,7 @@ def analyse_channel(times, voltages, savename, channelnum):
 					voltages[event] = len(voltages[event])*[np.nan]
 					peak = False
 					break
-				elif voltages[event][datapoint]< -0.003:
+				elif voltages[event][datapoint]< -0.0025:
 					deviatingevents.append(event)
 					voltages[event] = len(voltages[event])*[np.nan]
 					peak = False
@@ -182,26 +182,24 @@ def analyse_channel(times, voltages, savename, channelnum):
 			"""
 			for datapoint in range(len(voltages[event])):
 				if voltages[event][datapoint]>baseline +5*stdev:
-					if datapoint < 250:
+					#if datapoint < 250:
 						#deviatingevents.append(event)
 						#voltages[event] = len(voltages[event])*[np.nan]
-						peak = False
+						#peak = False
 						#print("found a rogue peak")
 					#print(event, datapoint)
-					elif datapoint > 550:
-						deviatingevents.append(event)
-						voltages[event] = len(voltages[event])*[np.nan]
-						peak = False
+					#elif datapoint > 550:
+						#deviatingevents.append(event)
+						#voltages[event] = len(voltages[event])*[np.nan]
+						#peak = False
 						#print("found a rogue peak")						
-					else:
-						ToA = datapoint *tstep
-						toalist[event] = ToA
-						#print("STarted integrating at index: ", datapoint)
-						if datapoint > 310:
-							datapoint = datapoint-10
-						for i in range(110):
-							area += voltages[event][datapoint +i]
-						break
+					#else:
+					ToA = datapoint *tstep
+					toalist[event] = ToA
+					#print("STarted integrating at index: ", datapoint)
+					for i in range(110):
+						area += voltages[event][datapoint +i]
+					break
 				#Filter signals that have a very negative signal before the 350th datapoint
 				if voltages[event][datapoint]<baseline -5*stdev:
 					if datapoint < 350:
@@ -326,7 +324,7 @@ fheights29, areas29, heightdifferences29, timedifferences29, peaks1_29, peaks2_2
 plt.show()
 #sys.exit(0)
 plt.figure()
-plt.hist2d(peaks1_29, peaks2_29, bins = (np.linspace(-0.005,0.03,50),np.linspace(-0.005,0.03,50)), cmap=plt.cm.jet, cmin =1)
+plt.hist2d(peaks1_29, peaks2_29, bins = (np.linspace(-0.005,0.03,50),np.linspace(-0.005,0.03,50)), cmin =1)
 plt.xlabel('Peak height SiPM1 (V)')
 plt.ylabel('Peak height SiPM1 (V)')
 plt.title('Peak heights in each SiPM (29V)')
@@ -335,7 +333,7 @@ plt.savefig('peakheight_correlation_29.png')
 #plt.show()
 
 plt.figure()
-plt.hist2d(peaks1_28, peaks2_28, bins = (np.linspace(-0.005,0.03,50),np.linspace(-0.005,0.03,50)), cmap=plt.cm.jet, cmin =1)
+plt.hist2d(peaks1_28, peaks2_28, bins = (np.linspace(-0.005,0.03,50),np.linspace(-0.005,0.03,50)), cmin =1)
 plt.xlabel('Peak height SiPM1 (V)')
 plt.ylabel('Peak height SiPM1 (V)')
 plt.title('Peak heights in each SiPM (28V)')
@@ -344,7 +342,7 @@ plt.savefig('peakheight_correlation_28V.png')
 #plt.show()
 
 plt.figure()
-plt.hist2d(peaks1_27, peaks2_27, bins = (np.linspace(-0.005,0.03,50),np.linspace(-0.005,0.03,50)), cmap=plt.cm.jet, cmin =1)
+plt.hist2d(peaks1_27, peaks2_27, bins = (np.linspace(-0.005,0.03,50),np.linspace(-0.005,0.03,50)), cmin =1)
 plt.xlabel('Peak height SiPM1 (V)')
 plt.ylabel('Peak height SiPM1 (V)')
 plt.title('Peak heights in each SiPM (27V)')
@@ -353,7 +351,7 @@ plt.savefig('peakheight_correlation_27V.png')
 #plt.show()
 
 plt.figure()
-plt.hist2d(peaks1_26, peaks2_26, bins = (np.linspace(-0.005,0.03,50),np.linspace(-0.005,0.03,50)), cmap=plt.cm.jet, cmin =1)
+plt.hist2d(peaks1_26, peaks2_26, bins = (np.linspace(-0.005,0.03,50),np.linspace(-0.005,0.03,50)), cmin =1)
 plt.xlabel('Peak height SiPM1 (V)')
 plt.ylabel('Peak height SiPM1 (V)')
 plt.title('Peak heights in each SiPM (26V)')
@@ -363,11 +361,10 @@ plt.savefig('peakheight_correlation_26V.png')
 
 #histogram of peak heights of fast output
 plt.figure()
-plt.hist(areas26, bins =np.linspace(-0.2,1,50),histtype = u'step', label = "26 V", density =True)
-plt.hist(areas27, bins =np.linspace(-0.2,1,50),histtype = u'step', label = "27 V", density = True)
-plt.hist(areas28, bins =np.linspace(-0.2,1,50),histtype = u'step', label = "28 V", density = True)
-plt.hist(areas29, bins =np.linspace(-0.2,1,50),histtype = u'step', label = "29 V", density =True)
-#plt.yscale('log')
+plt.hist(areas26, bins =np.linspace(-0.2,1,100),histtype = u'step', label = "26 V", density =True)
+plt.hist(areas27, bins =np.linspace(-0.2,1,100),histtype = u'step', label = "27 V", density = True)
+plt.hist(areas28, bins =np.linspace(-0.2,1,100),histtype = u'step', label = "28 V", density = True)
+plt.hist(areas29, bins =np.linspace(-0.2,1,100),histtype = u'step', label = "29 V", density =True)
 #plt.hist(areas27, bins = np.linspace(-2, 14, 35), histtype = u'step')
 #plt.hist(areas28, bins = np.linspace(-2, 14, 35), histtype = u'step')
 #plt.hist(areas29, bins = np.linspace(-2, 14, 35), histtype = u'step')
@@ -379,10 +376,11 @@ plt.savefig("integrated_area_all.png")
 #plt.show()
 
 plt.figure()
-plt.hist(timedifferences26, range =(-0.000000004,0.000000004), bins =25,histtype = u'step', label = "26 V", density =True)
-plt.hist(timedifferences27, range =(-0.000000004,0.000000004), bins =25,histtype = u'step', label = "27 V", density =True)
-plt.hist(timedifferences28, range =(-0.000000004,0.000000004), bins =25,histtype = u'step', label = "28 V", density =True)
-plt.hist(timedifferences29, range =(-0.000000004,0.000000004), bins =25,histtype = u'step', label = "29 V", density =True)
+
+plt.hist(timedifferences26, range =(-0.000000004,0.000000004), bins =50,histtype = u'step', label = "26 V", density =True)
+plt.hist(timedifferences27, range =(-0.000000004,0.000000004), bins =50,histtype = u'step', label = "27 V", density =True)
+plt.hist(timedifferences28, range =(-0.000000004,0.000000004), bins =50,histtype = u'step', label = "28 V", density =True)
+plt.hist(timedifferences29, range =(-0.000000004,0.000000004), bins =50,histtype = u'step', label = "29 V", density =True)
 plt.legend()
 plt.xlabel('Time difference (s)')
 plt.ylabel('Counts')
@@ -391,7 +389,7 @@ plt.savefig('Time_Difference_Spectrum.png')
 #plt.show()
 
 plt.figure()
-plt.hist2d(heightdifferences26, timedifferences26, bins = (np.linspace(-0.02,0.02,30),np.linspace(-0.0000000025,0.0000000025,30)), cmap=plt.cm.jet, cmin =1)
+plt.hist2d(heightdifferences26, timedifferences26, bins = (np.linspace(-0.02,0.02,30),np.linspace(-0.0000000025,0.0000000025,30)), cmin =1)
 plt.xlabel('Peak height differences (V)')
 plt.ylabel('Time differences (s)')
 plt.title('Peak height and time difference correlation (26V)')
@@ -400,7 +398,7 @@ plt.savefig('peak_time_correlation_26V.png')
 #plt.show()
 
 plt.figure()
-plt.hist2d(heightdifferences27, timedifferences27, bins = (np.linspace(-0.02,0.02,30),np.linspace(-0.0000000025,0.0000000025,30)), cmap=plt.cm.jet, cmin =1)
+plt.hist2d(heightdifferences27, timedifferences27, bins = (np.linspace(-0.02,0.02,30),np.linspace(-0.0000000025,0.0000000025,30)), cmin =1)
 plt.xlabel('Peak height differences (V)')
 plt.ylabel('Time differences (s)')
 plt.title('Peak height and time difference correlation (27V)')
@@ -409,7 +407,7 @@ plt.savefig('peak_time_correlation_27V.png')
 #plt.show()
 
 plt.figure()
-plt.hist2d(heightdifferences28, timedifferences28, bins = (np.linspace(-0.02,0.02,30),np.linspace(-0.0000000025,0.0000000025,30)), cmap=plt.cm.jet, cmin =1)
+plt.hist2d(heightdifferences28, timedifferences28, bins = (np.linspace(-0.02,0.02,30),np.linspace(-0.0000000025,0.0000000025,30)), cmin =1)
 plt.xlabel('Peak height differences (V)')
 plt.ylabel('Time differences (s)')
 plt.title('Peak height and time difference correlation (28V)')
@@ -418,7 +416,7 @@ plt.savefig('peak_time_correlation_28V.png')
 #plt.show()
 
 plt.figure()
-plt.hist2d(heightdifferences29, timedifferences29, bins = (np.linspace(-0.02,0.02,30),np.linspace(-0.0000000025,0.0000000025,30)), cmap=plt.cm.jet, cmin =1)
+plt.hist2d(heightdifferences29, timedifferences29, bins = (np.linspace(-0.02,0.02,30),np.linspace(-0.0000000025,0.0000000025,30)), cmin =1)
 plt.xlabel('Peak height differences (V)')
 plt.ylabel('Time differences (s)')
 plt.title('Peak height and time difference correlation (29V)')
@@ -427,7 +425,7 @@ plt.savefig('peak_time_correlation_29V.png')
 #plt.show()
 
 plt.figure()
-plt.hist2d(fheights26, areas26, bins = (np.linspace(0,0.04,25),np.linspace(-0.2,1,25)), cmap=plt.cm.jet, cmin =1)
+plt.hist2d(fheights26, areas26, bins = (np.linspace(0,0.04,25),np.linspace(-0.2,1,25)), cmin =1)
 plt.xlabel('Peak heights (V)')
 plt.ylabel('Integrated signal (V)')
 plt.title('Peak Height and Area Correlation (26V)')
@@ -486,7 +484,7 @@ plt.show()
 """
 
 plt.figure()
-plt.hist2d(fheights27, areas27, bins = (np.linspace(0,0.04,25),np.linspace(-0.2,1,25)), cmap=plt.cm.jet, cmin =1)
+plt.hist2d(fheights27, areas27, bins = (np.linspace(0,0.04,25),np.linspace(-0.2,1,25)), cmin =1)
 plt.xlabel('Peak heights (V)')
 plt.ylabel('Integrated signal (V)')
 plt.title('Peak Height and Area Correlation (27V)')
@@ -495,7 +493,7 @@ plt.savefig('correlation_27V.png')
 #plt.show()
 
 plt.figure()
-plt.hist2d(fheights28, areas28, bins = (np.linspace(0,0.04,25),np.linspace(-0.2,1,25)), cmap=plt.cm.jet, cmin = 1)
+plt.hist2d(fheights28, areas28, bins = (np.linspace(0,0.04,25),np.linspace(-0.2,1,25)), cmin = 1)
 plt.xlabel('Peak heights (V)')
 plt.ylabel('Integrated signal (V)')
 plt.title('Peak Height and Area Correlation (28V)')
@@ -504,7 +502,7 @@ plt.savefig('correlation_28V.png')
 #plt.show()
 
 plt.figure()
-plt.hist2d(fheights29, areas29, bins = (np.linspace(0,0.04,25),np.linspace(-0.2,1,25)), cmap=plt.cm.jet, cmin = 1)
+plt.hist2d(fheights29, areas29, bins = (np.linspace(0,0.04,25),np.linspace(-0.2,1,25)), cmin = 1)
 plt.xlabel('Peak heights (V)')
 plt.ylabel('Integrated signal (V)')
 plt.title('Peak Height and Area Correlation (29V)')
@@ -515,10 +513,11 @@ plt.savefig('correlation_29V.png')
 
 
 plt.figure()
-plt.hist(fheights26, bins = np.linspace(0,0.04,50),histtype = u'step', label = "26 V", density =True)
-plt.hist(fheights27, bins = np.linspace(0,0.04,50),histtype = u'step', label = "27 V", density =True)
-plt.hist(fheights28, bins = np.linspace(0,0.04,50),histtype = u'step', label = "28 V", density =True)
-plt.hist(fheights29, bins = np.linspace(0,0.04,50),histtype = u'step', label = "29 V", density =True)
+
+plt.hist(fheights26, bins = np.linspace(0,0.04,100),histtype = u'step', label = "26 V", density =True)
+plt.hist(fheights27, bins = np.linspace(0,0.04,100),histtype = u'step', label = "27 V", density =True)
+plt.hist(fheights28, bins = np.linspace(0,0.04,100),histtype = u'step', label = "28 V", density =True)
+plt.hist(fheights29, bins = np.linspace(0,0.04,100),histtype = u'step', label = "29 V", density =True)
 #plt.yscale('log')
 plt.title("Peak heights of Fast Output")
 plt.xlabel("Peak height")
@@ -527,5 +526,5 @@ plt.legend()
 plt.savefig("peak_heights_all.png")
 #plt.show()
 
-plt.show()
+#plt.show()
 
